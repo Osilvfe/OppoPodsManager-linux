@@ -6,9 +6,11 @@
 
 ## English
 
-Windows desktop OPPO earbuds Bluetooth controller, supporting Enco Free4 / X3 / Air5 / Air5 Pro / Air4 Pro / Air2 Pro series.
+Windows desktop OPPO / OnePlus / realme earbuds Bluetooth controller, supporting **137 devices** across all three brands.
 
-> Device capabilities are auto-detected from `DeviceModels.json` (based on decompiled OPPO Melody App v16.8.1). Manual override is available in Settings for unsupported or misidentified models.
+> `DeviceModels.json` is reverse-engineered from OPPO Melody App v16.8.1 by [@Dszsu](https://github.com/Dszsu). Device capabilities are auto-detected from the whitelist. Manual override with fuzzy search is available in Settings.
+>
+> **Note:** Only OPPO Enco Free4 and Enco Air4 Pro have been tested on real hardware. Other models' adaptation logic has not been verified — full functionality is not guaranteed.
 
 Built on the OPPO proprietary RFCOMM protocol reverse-engineered by [Leaf-lsgtky/OppoPods](https://github.com/Leaf-lsgtky/OppoPods), with feature matrix reference from [1812z/OppoPods](https://github.com/1812z/OppoPods).
 
@@ -23,7 +25,7 @@ Built on the OPPO proprietary RFCOMM protocol reverse-engineered by [Leaf-lsgtky
 - Game mode (Standard / Compatible)
 - Dual-device connection toggle
 - Master EQ presets (model-adaptive, loaded from JSON)
-- Manual device model override in Settings
+- Searchable device model override in Settings (137 devices, fuzzy search)
 - System tray: left-click toggle window, right-click function menu
 - Tray hover shows real-time battery
 - Win11-style battery toast on connection
@@ -69,16 +71,25 @@ dotnet publish -c Release -r win-x64 --self-contained false -o publish
 
 ### Device Support
 
-| Model      | ANC | Adaptive | Spatial FX | 3D Audio | Dual Device | Master EQ |
-|:-----------|:---:|:---:|:---:|:---:|:---:|:---:|
-| Enco Free4 | ✅ | ✅ | ✅ | —  | ✅ | ✅ |
-| Enco X3    | ✅ | —  | —  | ✅ | ✅ | ✅ |
-| Enco Air5  | ✅ | ✅ | ✅ | —  | —  | ✅ |
-| Enco Air5 Pro | ✅ | ✅ | ✅ | —  | ✅ | ✅ |
-| Enco Air4 Pro | ✅ | ✅ | —  | —  | ✅ | ✅ (3 presets, tested) |
-| Enco Air2 Pro | ✅ | —  | —  | —  | —  | ✅ |
+The complete device whitelist (137 models) is in `DeviceModels.json`, synced from the official OPPO Melody App. Covers:
 
-Other Bluetooth devices whose name contains "OPPO" will auto-connect with a generic feature set. You can manually override the device model in Settings if auto-detection fails.
+| Brand | Models |
+|-------|--------|
+| OPPO | Enco Free / Air / X / R / Clip / Buds series |
+| OnePlus | Buds Pro / Nord Buds / Bullets Wireless series |
+| realme | Buds Air / Buds T / Buds Wireless / DIZO series |
+
+Key tested models:
+
+| Model | ANC | Adaptive | Spatial FX | 3D Audio | Dual Device | Master EQ |
+|:------|:---:|:---:|:---:|:---:|:---:|:---:|
+| Enco Free4 | ✅ | ✅ | ✅ | — | ✅ | ✅ |
+| Enco X3 | ✅ | — | — | ✅ | ✅ | ✅ |
+| Enco Air5 Pro | ✅ | ✅ | ✅ | — | ✅ | ✅ |
+| Enco Air4 Pro | ✅ | ✅ | — | — | ✅ | ✅ (tested) |
+| Enco Air2 Pro | ✅ | — | — | — | — | ✅ |
+
+Use the **searchable device selector** in Settings to manually override auto-detection if needed.
 
 ### Project Structure
 
@@ -113,9 +124,11 @@ GPL-3.0
 
 ## 中文
 
-Windows 桌面端 OPPO 耳机蓝牙控制器，支持 Enco Free4 / X3 / Air5 / Air5 Pro / Air4 Pro / Air2 Pro 系列。
+Windows 桌面端 OPPO / OnePlus / realme 耳机蓝牙控制器，支持三大品牌共 **137 款设备**。
 
-> 设备能力基于 `DeviceModels.json` 自动检测（数据源：OPPO 欢律 App v16.8.1 反编译）。设置中可手动覆盖型号以应对自动识别失败的情况。
+> `DeviceModels.json` 由 [@Dszsu](https://github.com/Dszsu) 逆向 OPPO 欢律 App v16.8.1 提取。设备能力基于白名单自动检测，设置中提供可搜索的手动型号覆盖。
+>
+> **注意：** 目前仅 OPPO Enco Free4 和 Enco Air4 Pro 经真机测试，其余机型适配逻辑未经验证，不保证全部功能可用。
 
 基于 [Leaf-lsgtky/OppoPods](https://github.com/Leaf-lsgtky/OppoPods) 逆向的 OPPO 私有 RFCOMM 协议，参考 [1812z/OppoPods](https://github.com/1812z/OppoPods) 的功能矩阵实现。
 
@@ -130,7 +143,7 @@ Windows 桌面端 OPPO 耳机蓝牙控制器，支持 Enco Free4 / X3 / Air5 / A
 - 游戏模式（标准 / 兼容两种实现）
 - 双设备连接开关
 - 大师调音 EQ（按型号从 JSON 加载）
-- 设置中可手动覆盖设备型号
+- 设置中可搜索手动覆盖设备型号（137 设备，模糊搜索）
 - 系统托盘常驻，左键切换显隐，右键功能菜单
 - 托盘悬浮提示实时电量
 - 连接时弹出 Win11 风格电量提示

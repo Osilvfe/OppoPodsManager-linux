@@ -243,7 +243,8 @@
                                HorizontalAlignment="Center"/>
 
                     <TextBlock Text="设备型号" FontSize="12" Margin="0,0,0,2" HorizontalAlignment="Center"/>
-                    <ComboBox x:Name="CbModel" SelectionChanged="CbModel_Changed" Height="30" Padding="8,0" Margin="0,0,0,12"/>
+                    <ComboBox x:Name="CbModel" SelectionChanged="CbModel_Changed" Height="30" Padding="8,0" Margin="0,0,0,12"
+                              IsEditable="True" GotFocus="CbModel_GotFocus" DropDownOpened="CbModel_DropDownOpened"/>
                     <TextBlock x:Name="ModelNote" Text="" FontSize="10" HorizontalAlignment="Center" Opacity="0.5" Margin="0,-8,0,8"/>
 
                     <TextBlock Text="自定义设备名称" FontSize="12" Margin="0,0,0,2" HorizontalAlignment="Center"/>
@@ -296,7 +297,7 @@
                     <TextBlock Text="关于" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,12"
                                HorizontalAlignment="Center"/>
                     <TextBlock Text="OPPO Pods For Windows" FontSize="13" HorizontalAlignment="Center" Margin="0,0,0,4"/>
-                    <TextBlock Text="v1.0.0" FontSize="11" HorizontalAlignment="Center" Opacity="0.5" Margin="0,0,0,12"/>
+                    <TextBlock Text="v1.0.4" FontSize="11" HorizontalAlignment="Center" Opacity="0.5" Margin="0,0,0,12"/>
                     <TextBlock Text="致谢" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                     <TextBlock FontSize="10" HorizontalAlignment="Center" Opacity="0.6" Margin="0,0,0,2">
                         <Hyperlink NavigateUri="https://github.com/Leaf-lsgtky/OppoPods" RequestNavigate="Hyperlink_RequestNavigate">

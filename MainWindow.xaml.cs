@@ -52,6 +52,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private bool _wasConnected;        // 追踪连接状态，首次连上时弹提示
     private bool _lowBatteryAlerted;   // 低电量提醒已触发过，防止重复弹
     private bool _criticalBatteryAlerted; // 极低电量提醒
+    private List<string> _allModelNames = new();  // 设备型号完整列表，用于搜索过滤
 
     public MainWindow()
     {
@@ -109,8 +110,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         CbAuto.IsChecked = ReadRegBool(AppConst.RegRun, AppConst.RegRunName);
 
         // 设备型号选择（从 JSON 动态加载）
+        _allModelNames = DeviceCapabilities.GetModelNames();
         CbModel.Items.Add("自动检测");
-        foreach (var name in DeviceCapabilities.GetModelNames())
+        foreach (var name in _allModelNames)
             CbModel.Items.Add(name);
         _modelOverride = ReadRegStr(AppConst.RegBase, "ModelOverride");
         CbModel.SelectedItem = _modelOverride ?? "自动检测";
@@ -416,8 +418,57 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         catch { }
     }
 
+    private bool _filtering;  // 防止搜索过滤时触发 CbModel_Changed
+
+    private void CbModel_GotFocus(object s, RoutedEventArgs e)
+    {
+        CbModel.IsDropDownOpen = true;
+    }
+
+    private void CbModel_DropDownOpened(object s, EventArgs e)
+    {
+        // 每次打开下拉时重置为完整列表
+        _filtering = true;
+        CbModel.Items.Clear();
+        CbModel.Items.Add("自动检测");
+        foreach (var name in _allModelNames) CbModel.Items.Add(name);
+        CbModel.Text = _modelOverride ?? "";
+        _filtering = false;
+
+        // 监听输入实现实时模糊搜索（只绑定一次）
+        if (CbModel.Template.FindName("PART_EditableTextBox", CbModel) is TextBox tb && tb.Tag is null)
+        {
+            tb.Tag = "hooked";
+            tb.TextChanged += (_, _) =>
+            {
+                var filter = tb.Text;
+                if (string.IsNullOrEmpty(filter))
+                {
+                    _filtering = true;
+                    CbModel.IsDropDownOpen = true;
+                    CbModel.Items.Clear();
+                    CbModel.Items.Add("自动检测");
+                    foreach (var name in _allModelNames) CbModel.Items.Add(name);
+                    _filtering = false;
+                    return;
+                }
+                _filtering = true;
+                CbModel.IsDropDownOpen = true;
+                CbModel.Items.Clear();
+                CbModel.Items.Add("自动检测");
+                foreach (var name in _allModelNames)
+                    if (name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                        CbModel.Items.Add(name);
+                CbModel.Text = filter;
+                _filtering = false;
+                tb.CaretIndex = filter.Length;
+            };
+        }
+    }
+
     private void CbModel_Changed(object s, SelectionChangedEventArgs e)
     {
+        if (_filtering) return;
         if (CbModel.SelectedItem is not string sel) return;
         _modelOverride = sel == "自动检测" ? null : sel;
         WriteRegStr(AppConst.RegBase, "ModelOverride", _modelOverride);
