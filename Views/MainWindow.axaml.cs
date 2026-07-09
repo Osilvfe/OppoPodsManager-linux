@@ -1710,7 +1710,7 @@ public partial class MainWindow : SukiWindow
 
         DiDeviceName.Text = caps.ModelName;
         DiFirmware.Text = FormatFirmware(_pods.State.FirmwareVersion);
-        DiCodec.Text = CodecName(_pods.State.CodecType);
+        DiCodec.Text = OppoProtocol.CodecName(_pods.State.CodecType);
 
         // 音效增强互斥组
         bool showSpatial = caps.HasSpatialSound;
@@ -1753,21 +1753,6 @@ public partial class MainWindow : SukiWindow
         var ordered = versions.OrderBy(kv => kv.Key).Select(kv => kv.Value);
         return string.Join(".", ordered);
     }
-
-    private static string CodecName(int id) => id switch
-    {
-        0 => "SBC",
-        1 => "AAC",
-        2 => "LDAC",
-        3 => "LHDC",
-        4 => "LC3",
-        5 => "aptX",
-        6 => "aptX HD",
-        7 => "aptX Adaptive",
-        8 => "LHDC",
-        -1 => "-",
-        _ => $"未知 ({id})"
-    };
 
     private bool _diEnhanceSuppress;
     private void DiEnhance_Changed(object? s, Avalonia.Interactivity.RoutedEventArgs e)

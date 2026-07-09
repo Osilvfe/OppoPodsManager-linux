@@ -294,15 +294,54 @@ public static partial class OppoProtocol
     /// <summary>解析编解码器类型响应（0x8114）：[status(1)][n(1)][id,val]×n，返回首个 codec id。</summary>
     public static int ParseCodecType(byte[] payload)
     {
-        // SPP 短格式: [status(1), codecType(1)]
-        if (payload != null && payload.Length >= 2 && payload[0] == 0)
-            return payload[1];
-        // GATT 长格式: [status(1), count(1), id(1), val(1), ...]
-        if (payload == null || payload.Length < 3 || payload[0] != 0) return -1;
-        int n = payload[1];
-        if (n <= 0 || payload.Length < 2 + 2) return -1;
-        return payload[3];   // [id][val] 首对的 val 即当前 codec
+        int raw;
+        bool isSpp = false;
+
+        // SPP 短格式: [status(1), codecType(1)] — A2DP 标准编号
+        if (payload != null && payload.Length == 2 && payload[0] == 0)
+        {
+            raw = payload[1];
+            isSpp = true;
+        }
+        // GATT 长格式: [status(1), count(1), id(1), val(1), ...] — OPPO 私有编号
+        else if (payload != null && payload.Length >= 4 && payload[0] == 0)
+        {
+            int n = payload[1];
+            if (n <= 0 || payload.Length < 2 + n * 2) return -1;
+            raw = -1;
+            for (int i = 0; i < n; i++)
+            {
+                if (payload[3 + i * 2] != 0) { raw = payload[2 + i * 2]; break; }
+            }
+            if (raw < 0) return -1;
+        }
+        else return -1;
+
+        // 归一化: GATT(OPPO 私有) → SPP(A2DP 标准)
+        if (!isSpp)
+        {
+            raw = raw switch { 1 => 2, 2 => 1, _ => raw }; // AAC: 1↔2, 其他不变（待验证）
+        }
+        return raw;
     }
+
+    /// <summary>
+    /// 编解码器 ID（已归一化为 A2DP 标准）→ 可读名称。
+    /// </summary>
+    public static string CodecName(int id) => id switch
+    {
+        0 => "SBC",
+        1 => "AAC",
+        2 => "LDAC",
+        3 => "LHDC",
+        4 => "LC3",
+        5 => "aptX",
+        6 => "aptX HD",
+        7 => "aptX Adaptive",
+        8 => "LHDC",
+        -1 => "-",
+        _ => $"未知 ({id})"
+    };
 
     /// <summary>
     /// 解析空间音频三模式查询响应（0x812A，getHeadsetSpatialType）。
