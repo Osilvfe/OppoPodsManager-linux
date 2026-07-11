@@ -358,16 +358,36 @@ public partial class PodManager : IPodManager
     }
 
     /// <summary>
-    /// 多设备操作统一入口。用 SendSet（带 ACK 追踪/重试）而非裸 Send：
-    /// - 设备回 0x8429 status=0 → 成功；status!=0 → CommandFailed 提示；超时 → 重试后报超时。
+    /// 多设备操作统一入口。用 PacketDispatcher.SendTracked（带 ACK 追踪/重试/超时）而非裸 Send：
+    /// - 设备回 0x8429 status=0 → 成功 → 刷新列表（SendMultiConnectInfo），让 UI 即时反映变更；
+    /// - status!=0 → CommandFailed 提示；超时 → 重试后报超时。
     /// - 打印完整载荷字节，便于据日志确认设备是"拒绝(NAK)""无响应"还是"格式不符被忽略"。
     /// 原实现用裸 TrySend(fire-and-forget)，设备丢包或拒绝都无声无息，正是"点断开没反应"的元凶之一。
+    /// 注意：不走 SendSet（它的 callback 在成功时无动作），直接用 _dispatcher 以便在 ACK 成功后刷新列表。
     /// </summary>
     private void SendMultiConnectOp(byte operateType, string targetAddress, string label, bool clearAddress = false)
     {
         var payload = OppoProtocol.MultiConnectOpPayload(operateType, targetAddress, clearAddress);
+        var cmd = OppoProtocol.CmdOperateHandheld;
+        if (!Supports(cmd))
+        {
+            Log.D("RFCOMM", $"SendMultiConnectOp: 型号 {Caps.ModelName} 不支持多设备操作(0x{cmd:X4})，已忽略");
+            return;
+        }
         Log.D("RFCOMM", $"多设备操作: {label} addr={targetAddress} type={operateType} payload=[{BitConverter.ToString(payload)}]");
-        SendSet(OppoProtocol.CmdOperateHandheld, payload, $"多设备{label}");
+        _dispatcher.SendTracked(cmd, payload, (status, _) =>
+        {
+            if (status == CmdStatus.Success)
+            {
+                Log.D("RFCOMM", $"多设备操作: {label} ACK 成功，刷新设备列表");
+                SendMultiConnectInfo();
+            }
+            else
+            {
+                Log.D("RFCOMM", $"多设备操作: {label} 失败 status={(int)status}");
+                CommandFailed?.Invoke($"多设备{label} 失败" + (status == CmdStatus.Timeout ? "（超时）" : ""));
+            }
+        });
     }
 
     public void SendMultiConnectConnect(string targetAddress) =>
@@ -377,7 +397,7 @@ public partial class PodManager : IPodManager
         SendMultiConnectOp(OppoProtocol.MultiOpDisconnect, targetAddress, "断开");
 
     public void SendMultiConnectSetPriority(string targetAddress) =>
-        SendMultiConnectOp(OppoProtocol.MultiOpSetPriority, targetAddress, "设为优先");
+        Log.D("RFCOMM", $"设为优先: 当前协议未确认对应操作，已忽略 addr={targetAddress}");
 
     public void SendMultiConnectUnpair(string targetAddress) =>
         SendMultiConnectOp(OppoProtocol.MultiOpUnpair, targetAddress, "取消配对");

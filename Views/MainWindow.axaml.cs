@@ -2481,14 +2481,7 @@ public partial class MainWindow : SukiWindow
                 }
                 else
                 {
-                    // 已连接 → 切换音频 / 断开
-                    if (canManage)
-                    {
-                        var setPri = new MenuItem { Header = "切换音频到此设备" };
-                        setPri.Click += (_, _) => _pods.SendMultiConnectSetPriority(d.Address);
-                        menu.Items.Add(setPri);
-                        menu.Items.Add(new Separator());
-                    }
+                    // 已连接 → 断开
                     var disconnect = new MenuItem { Header = $"断开「{d.DeviceName}」" };
                     disconnect.Click += (_, _) => _pods.SendMultiConnectDisconnect(d.Address);
                     menu.Items.Add(disconnect);
@@ -2499,51 +2492,18 @@ public partial class MainWindow : SukiWindow
                 unpair.Click += (_, _) => _pods.SendMultiConnectUnpair(d.Address);
                 menu.Items.Add(unpair);
             }
-            else if (isReal && d.IsCurrentDevice)
-            {
-                // 当前设备（本机）也可调整：把音频主通道切回本机（当音频正在别的设备上时有用）。
-                // 依据 melody：当前设备走的是设为优先设备，不提供断开/解绑（不能把自己踢掉）。
-                if (canManage && !d.IsAudioActive)
-                {
-                    var setPri = new MenuItem { Header = "切换音频到本机" };
-                    setPri.Click += (_, _) => _pods.SendMultiConnectSetPriority(d.Address);
-                    menu.Items.Add(setPri);
-                }
-            }
 
             if (menu.Items.Count > 0)
             {
                 border.ContextMenu = menu;
                 border.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand);
 
-                // 左键快捷操作：已连接 → 切换音频；已断开 → 连接
+                // 左键快捷操作：已断开 → 连接。已连接设备通过右键菜单管理。
                 border.PointerPressed += (s, e) =>
                 {
                     var pt = e.GetCurrentPoint(border);
                     if (!pt.Properties.IsLeftButtonPressed) return;
-                    if (d.IsCurrentDevice)
-                    {
-                        // 当前设备（本机）：仅在支持管理且音频不在本机时，把音频切回本机
-                        if (canManage && !d.IsAudioActive)
-                        {
-                            Log.D("UI", $"切换音频到本机 -> {d.DeviceName} ({d.Address})");
-                            _pods.SendMultiConnectSetPriority(d.Address);
-                        }
-                    }
-                    else if (d.ConnectionState == 2)
-                    {
-                        if (canManage)
-                        {
-                            Log.D("UI", $"切换音频 -> {d.DeviceName} ({d.Address})");
-                            _pods.SendMultiConnectSetPriority(d.Address);
-                        }
-                        else
-                        {
-                            Log.D("UI", $"连接/切换设备 -> {d.DeviceName} ({d.Address})");
-                            _pods.SendOperateHandheld(d.Address, true);
-                        }
-                    }
-                    else
+                    if (!d.IsCurrentDevice && d.ConnectionState != 2)
                     {
                         Log.D("UI", $"连接设备 -> {d.DeviceName} ({d.Address})");
                         _pods.SendMultiConnectConnect(d.Address);

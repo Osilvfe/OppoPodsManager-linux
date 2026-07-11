@@ -33,6 +33,7 @@ public static partial class OppoProtocol
     public const ushort CmdMultiConnectInfo = 0x0112;  // 查询多设备连接列表
     public const ushort CmdMultiConnectResp = 0x8112;  // 多设备列表响应
     public const ushort CmdOperateHandheld = 0x0429;   // 切换多设备中的活动设备
+    public const ushort CmdSetRelatedDeviceInfo = 0x0408;  // 设置已配对设备列表（Melody: setRelatedDeviceInfo）
     public const ushort CmdQueryProductId = 0x0103;    // 查询远程 Product ID（设备识别主键）
     public const ushort CmdProductIdResp = 0x8103;     // Product ID 响应
 

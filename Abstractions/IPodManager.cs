@@ -102,7 +102,7 @@ public interface IPodManager : IDisposable
     // 用法：先 SendMultiConnectInfo() 刷新，从 State.ConnectedDevices 拿列表。
     // 每项含 Address / ConnectionState / IsCurrentDevice / IsAudioActive / IsMainAudioDevice。
     //   - IsCurrentDevice=true（本机）：不提供断开/解绑。
-    //   - ConnectionState==2 已连接、非当前：可断开；想切音频输出到它 → 设为优先。
+    //   - ConnectionState==2 已连接、非当前：可断开或取消配对。
     //   - ConnectionState==0 已断开：可连接。
     //   - IsAudioActive=true = 此刻正在放音的设备。
 
@@ -115,7 +115,7 @@ public interface IPodManager : IDisposable
     /// <summary>断开指定手持设备。</summary>
     void SendMultiConnectDisconnect(string targetAddress);
 
-    /// <summary>设为优先设备：把音频活动/主通道切到该设备。</summary>
+    /// <summary>保留的兼容接口。当前协议未确认“设为优先”操作，因此实现不会下发命令。</summary>
     void SendMultiConnectSetPriority(string targetAddress);
 
     /// <summary>取消配对/解绑指定手持设备。</summary>

@@ -388,9 +388,9 @@ public partial class PodManager
             int pos = start + 2;
             for (int i = 0; i < count && pos + 8 < start + len; i++)
             {
-                // 设备按小端(倒序)传 MAC：wire 首字节是 MAC 末字节。melody HandheldDeviceInfo.parseAddress
-                // 同样倒序还原成 AA:BB:CC:DD:EE:FF 显示序。这里必须反转，否则存下来的地址是真地址的字节倒序，
-                // 回发操作命令(0x0429)时目标对不上 → 设备回 ACK 成功但实际没断开（本次 bug 根因）。
+                int entryStart = pos;  // 记录本条目的起始位置，保存原始字节供 setRelatedDeviceInfo 重建
+
+                // 设备按小端(倒序)传 MAC：wire 首字节是 MAC 末字节。
                 var addr = string.Join(":", Enumerable.Range(0, 6).Select(j => pkt[pos + 5 - j].ToString("X2")));
                 pos += 6;
 
@@ -410,6 +410,12 @@ public partial class PodManager
                     : "Device " + addr.Substring(Math.Max(0, addr.Length - 5));
                 pos += Math.Max(nameLen, 0);
 
+                // 保存该设备条目的原始字节（MAC LE 6B + elemByte6 + connState + flag + nameLen + name），
+                // 供 setRelatedDeviceInfo(0x0408) 重建 payload——取消配对时原样下发不含目标的列表。
+                int entryLen = pos - entryStart;
+                var rawEntry = new byte[entryLen];
+                Array.Copy(pkt, entryStart, rawEntry, 0, entryLen);
+
                 bool isCurrent = (flag & 0x01) != 0;
                 bool isMainAudio = (flag & 0x02) != 0;
                 bool isAudioActive = (flag & 0x04) != 0;
@@ -423,8 +429,10 @@ public partial class PodManager
                     IsCurrentDevice = isCurrent,
                     IsAudioActive = isAudioActive,
                     IsMainAudioDevice = isMainAudio,
+                    RawEntryBytes = rawEntry,
+                    ElemByte6 = (byte)elemByte6,
                 });
-                Log.D("RFCOMM", "ParseMultiConnect: device[" + i + "] addr=" + addr + ", name=\"" + deviceName + "\", connState=" + connState + ", flag=0x" + flag.ToString("X2") + ", cur=" + isCurrent);
+                Log.D("RFCOMM", $"ParseMultiConnect: device[{i}] addr={addr}, name=\"{deviceName}\", connState={connState}, flag=0x{flag:X2}, cur={isCurrent}, rawEntry={entryLen}B");
             }
 
             if (devices.Count > 0)
