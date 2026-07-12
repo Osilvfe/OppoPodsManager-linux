@@ -1,0 +1,59 @@
+name: 问题反馈
+description: 反馈 OPPO Pods Manager 使用过程中遇到的问题
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: input
+    id: os-version
+    attributes:
+      label: 系统版本
+      placeholder: Windows 11
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: 软件版本
+      placeholder: v1.1.4
+    validations:
+      required: true
+
+  - type: input
+    id: device-model
+    attributes:
+      label: 设备型号
+      placeholder: OPPO Enco Free4
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-type
+    attributes:
+      label: 安装包类型
+      options:
+        - Windows x64 AOT
+        - Windows x64 单文件
+        - Windows arm64
+        - Linux
+        - 自行编译
+        - 不确定
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem-description
+    attributes:
+      label: 问题描述
+      placeholder: xxxxx
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志文件
+      description: 请选择或拖拽上传日志文件。
+      placeholder: 请选择或拖拽上传日志文件。
+    validations:
+      required: true

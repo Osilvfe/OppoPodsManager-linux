@@ -371,6 +371,12 @@ public partial class PodManager : IPodManager
         SendFeatureSwitch(OppoProtocol.FeatureDualDevice, on, "双设备连接");
     }
 
+    public void SendFindDevice(bool start)
+    {
+        Log.D("RFCOMM", $"SendFindDevice start={start}");
+        SendSet(OppoProtocol.CmdSetFindMode, OppoProtocol.FindDevicePayload(start), start ? "查找耳机" : "停止查找耳机");
+    }
+
     public void SendGameMode(bool on)
     {
         if (!Caps.HasGameMode) return;
