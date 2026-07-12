@@ -81,7 +81,6 @@ public partial class MainWindow : SukiWindow
     private readonly Dictionary<NativeMenuItem, (string key, string parentKey, bool isChild)> _trayAncMap = new();
     internal static ISukiToastManager ToastManager = new SukiToastManager();
     private string? _modelOverride;
-    private bool _gameModeCompat;
     private bool _wasConnected;
     private bool _lowBatteryAlerted;
     private bool _criticalBatteryAlerted;
@@ -166,7 +165,6 @@ public partial class MainWindow : SukiWindow
         CbBrand.SelectionChanged += CbBrand_Changed;
         CbSeries.SelectionChanged += CbSeries_Changed;
         CbModel.SelectionChanged += CbModel_Changed;
-        CbGameMode.SelectionChanged += CbGameMode_Changed;
         CbTheme.SelectionChanged += CbTheme_Changed;
         TbCustomName.TextChanged += TbCustomName_Changed;
 
@@ -269,8 +267,6 @@ public partial class MainWindow : SukiWindow
             }
         }
 
-        _gameModeCompat = SettingsManager.GetBool("GameModeCompat", false);
-        CbGameMode.SelectedIndex = _gameModeCompat ? 1 : 0;
 
         var customName = SettingsManager.GetString("CustomName");
         TbCustomName.Text = customName ?? "";
@@ -1071,7 +1067,7 @@ public partial class MainWindow : SukiWindow
         {
             Log.D("UI", $"用户操作: 游戏模式开关 -> {on}");
             _featureUserSetAt = DateTime.Now;
-            _pods.SendGameMode(on, _gameModeCompat);
+            _pods.SendGameMode(on);
         }
     }
 
@@ -1306,12 +1302,6 @@ public partial class MainWindow : SukiWindow
                 SyncMultiDeviceList();
             }
         }
-    }
-
-    private void CbGameMode_Changed(object? s, SelectionChangedEventArgs e)
-    {
-        _gameModeCompat = CbGameMode.SelectedIndex == 1;
-        SettingsManager.SetBool("GameModeCompat", _gameModeCompat);
     }
 
     private void CbTheme_Changed(object? s, SelectionChangedEventArgs e)
@@ -2766,7 +2756,7 @@ public partial class MainWindow : SukiWindow
             if (caps.HasGameMode)
             {
                 var item = new NativeMenuItem((s.GameMode ? "✓ " : "") + "游戏模式");
-                item.Click += (_, _) => { _pods.SendGameMode(!s.GameMode, _gameModeCompat); };
+                item.Click += (_, _) => { _pods.SendGameMode(!s.GameMode); };
                 menu.Add(item);
             }
             if (caps.HasSpatialSound)

@@ -249,7 +249,13 @@ public static class DeviceProfileLoader
                 if (item.TryGetProperty("type", out var t) && t.ValueKind == JsonValueKind.Number)
                 {
                     int tv = t.GetInt32();
-                    if (tv != 0) { caps.HasGameSound = true; caps.GameSoundType = (byte)tv; break; }
+                    if (tv != 0)
+                    {
+                        caps.HasGameSound = true;
+                        caps.HasGameMode = true;
+                        caps.GameSoundType = (byte)tv;
+                        break;
+                    }
                 }
             }
         }

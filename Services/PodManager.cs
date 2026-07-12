@@ -371,14 +371,12 @@ public partial class PodManager : IPodManager
         SendFeatureSwitch(OppoProtocol.FeatureDualDevice, on, "双设备连接");
     }
 
-    public void SendGameMode(bool on, bool compatible = false)
+    public void SendGameMode(bool on)
     {
         if (!Caps.HasGameMode) return;
-        Log.D("RFCOMM", $"SendGameMode on={on} compatible={compatible}");
-        SendFeatureSwitch(OppoProtocol.FeatureGameMain, on, "游戏模式");
-        // 兼容实现：部分设备游戏低延迟需额外发 feature 0x06
-        if (compatible)
-            SendFeatureSwitch(OppoProtocol.FeatureGameLL, on, "游戏低延迟");
+        byte feature = OppoProtocol.GameModeFeature(Caps.HasGameSound);
+        Log.D("RFCOMM", $"SendGameMode on={on} feature=0x{feature:X2}");
+        SendFeatureSwitch(feature, on, "游戏模式");
     }
 
     /// <summary>

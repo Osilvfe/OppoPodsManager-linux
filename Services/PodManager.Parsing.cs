@@ -37,9 +37,12 @@ public partial class PodManager
     private void ParseCapabilities(byte[] pkt, int start, int len)
     {
         var payload = Slice(pkt, start, len);
+        var bitmap = OppoProtocol.CapabilityBitmap(payload);
         State.SupportedCommands = OppoProtocol.ParseCapabilityCommands(payload);
         UpdateSpatialCapabilities();
-        Log.D("RFCOMM", $"能力位图: {State.SupportedCommands.Count} 条命令, " +
+        Log.D("RFCOMM", $"能力响应: status={(payload.Length > 0 ? payload[0] : -1)}, payload={BitConverter.ToString(payload)}");
+        Log.D("RFCOMM", $"完整能力位图: hex={BitConverter.ToString(bitmap)}, bits(bit0→)={OppoProtocol.CapabilityBitmapBits(bitmap)}");
+        Log.D("RFCOMM", $"能力解析: {State.SupportedCommands.Count} 条命令, " +
             $"空间协议={(Caps.HasSpatialAudio ? "V2/0x0422" : Caps.HasSpatialSound ? "旧版/feature27" : "无")}");
         StateChanged?.Invoke();
     }

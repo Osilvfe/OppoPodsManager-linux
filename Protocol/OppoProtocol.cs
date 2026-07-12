@@ -264,6 +264,24 @@ public static partial class OppoProtocol
         }
         return commands;
     }
+
+    /// <summary>提取 0x8100 响应中的纯能力位图（去掉首字节 status）。</summary>
+    public static byte[] CapabilityBitmap(byte[] payload)
+    {
+        if (payload.Length <= 1) return Array.Empty<byte>();
+        var bitmap = new byte[payload.Length - 1];
+        Buffer.BlockCopy(payload, 1, bitmap, 0, bitmap.Length);
+        return bitmap;
+    }
+
+    /// <summary>按协议 bit0→bitN 顺序展开能力位图，便于日志直接核对位号。</summary>
+    public static string CapabilityBitmapBits(byte[] bitmap)
+    {
+        var bits = new char[bitmap.Length * 8];
+        for (int bit = 0; bit < bits.Length; bit++)
+            bits[bit] = (bitmap[bit / 8] & (1 << (bit % 8))) != 0 ? '1' : '0';
+        return new string(bits);
+    }
     /// <summary>查询设备端 EQ 预设列表：1 个 feature，类型 ID=5（equalizer）。</summary>
     public static readonly byte[] PayQueryEqAll = { 0x01, 0x05 };
     public static readonly byte[] PayQueryAnc = { 0x01, 0x01 };

@@ -203,11 +203,6 @@
          <TextBlock x:Name="ModelNote" Text="" FontSize="10" Opacity="0.4"
             Margin="0,-2,0,8"/>
 
-         <TextBlock Text="游戏模式实现" FontSize="12"
-            Foreground="{DynamicResource SukiText}" Opacity="0.7"/>
-         <ComboBox x:Name="CbGameMode" Height="28" Padding="8,0" HorizontalAlignment="Stretch">
-          <ComboBoxItem Content="标准 (28)"/><ComboBoxItem Content="兼容 (28+06)"/>
-         </ComboBox>
         </StackPanel>
 
         <!-- ====== 右列 ====== -->

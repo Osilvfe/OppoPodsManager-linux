@@ -87,8 +87,8 @@ public interface IPodManager : IDisposable
 
     // ==================== 功能开关 ====================
 
-    /// <summary>游戏模式（低延迟）。compatible=true 额外发低延迟兼容 feature。</summary>
-    void SendGameMode(bool on, bool compatible = false);
+    /// <summary>游戏模式（低延迟）。按设备是否支持游戏音效自动选择新版或旧版 feature。</summary>
+    void SendGameMode(bool on);
 
     /// <summary>双设备/多设备连接总开关（feature 0x11）。</summary>
     void SendDualDevice(bool on);
