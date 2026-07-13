@@ -17,62 +17,234 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: "true"
 
 jobs:
-  build:
+  build-linux-full:
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          # ── Linux ──
-          - os: ubuntu-latest
-            rid: linux-x64
-            backend: false
-            target: net10.0
+          - rid: linux-x64
             variant: single-file
             publish-args: "--self-contained false -p:PublishSingleFile=true -p:PublishAot=false"
-            pack: tar.gz
-          - os: ubuntu-latest
-            rid: linux-x64
-            backend: false
-            target: net10.0
+          - rid: linux-x64
             variant: self-contained
             publish-args: "--self-contained true -p:PublishSingleFile=true -p:PublishAot=false -p:EnableCompressionInSingleFile=false -p:PublishTrimmed=true"
-            pack: tar.gz
+            do-package: true
+            deb-arch: amd64
+            rpm-arch: x86_64
+            appimage-arch: x86_64
+          - rid: linux-arm64
+            variant: single-file
+            publish-args: "--self-contained false -p:PublishSingleFile=true -p:PublishAot=false"
+          - rid: linux-arm64
+            variant: self-contained
+            publish-args: "--self-contained true -p:PublishSingleFile=true -p:PublishAot=false -p:EnableCompressionInSingleFile=false -p:PublishTrimmed=true"
+            do-package: true
+            deb-arch: arm64
+            rpm-arch: aarch64
+            appimage-arch: aarch64
 
-          # ── Windows ──
+    steps:
+      - uses: actions/checkout@v6
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-dotnet@v5
+        with: { dotnet-version: "${{ env.DOTNET_VERSION }}" }
+      - uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: nuget-ubuntu-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-ubuntu-
+
+      - name: Publish
+        run: >
+          dotnet publish $PROJECT -c Release -r ${{ matrix.rid }} -f net10.0
+          -o publish/${{ matrix.variant }}
+          ${{ matrix.publish-args }}
+          -p:EnableWindowsBackend=false
+
+      - name: Package tar.gz
+        run: |
+          tar -czf "OppoPodsManager-${{ matrix.variant }}-${{ matrix.rid }}.tar.gz" -C publish/${{ matrix.variant }} .
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: OppoPodsManager-${{ matrix.variant }}-${{ matrix.rid }}
+          path: OppoPodsManager-${{ matrix.variant }}-${{ matrix.rid }}.tar.gz
+          retention-days: 14
+
+      - name: Install packaging tools
+        if: matrix.do-package
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq rpm 2>/dev/null
+
+      - name: Build .deb
+        if: matrix.do-package
+        run: |
+          ARCH="${{ matrix.deb-arch }}"
+          RID="${{ matrix.rid }}"
+          PKG_DIR=$(pwd)/deb-pkg
+          mkdir -p "$PKG_DIR/DEBIAN" "$PKG_DIR/usr/bin" "$PKG_DIR/usr/share/applications"
+          cp publish/self-contained/OppoPodsManager "$PKG_DIR/usr/bin/"
+          cp publish/self-contained/lib*.so* "$PKG_DIR/usr/bin/" 2>/dev/null || true
+          echo '[Desktop Entry]' > "$PKG_DIR/usr/share/applications/oppopodsmanager.desktop"
+          echo 'Name=OppoPodsManager' >> "$PKG_DIR/usr/share/applications/oppopodsmanager.desktop"
+          echo 'Exec=/usr/bin/OppoPodsManager' >> "$PKG_DIR/usr/share/applications/oppopodsmanager.desktop"
+          echo 'Type=Application' >> "$PKG_DIR/usr/share/applications/oppopodsmanager.desktop"
+          echo 'Terminal=false' >> "$PKG_DIR/usr/share/applications/oppopodsmanager.desktop"
+          echo 'Categories=Utility;Audio;' >> "$PKG_DIR/usr/share/applications/oppopodsmanager.desktop"
+          VER="${GITHUB_REF_NAME#v}"; [ "$VER" = "$GITHUB_REF_NAME" ] && VER="0.0.0"
+          printf 'Package: oppopodsmanager\nVersion: %s\nSection: utils\nPriority: optional\nArchitecture: %s\nMaintainer: Osilvfe\nDepends: bluez, libc6\nDescription: OPPO/OnePlus earbud manager\n' "$VER" "$ARCH" > "$PKG_DIR/DEBIAN/control"
+          dpkg-deb --root-owner-group --build "$PKG_DIR"
+          mv deb-pkg.deb "OppoPodsManager-self-contained-${RID}.deb"
+
+      - name: Build .rpm
+        if: matrix.do-package
+        run: |
+          ARCH="${{ matrix.rpm-arch }}"
+          RID="${{ matrix.rid }}"
+          mkdir -p $HOME/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+          cp publish/self-contained/OppoPodsManager $HOME/rpmbuild/SOURCES/
+          VER="${GITHUB_REF_NAME#v}"; [ "$VER" = "$GITHUB_REF_NAME" ] && VER="0.0.0"
+          # aarch64 cross-build: use _target_cpu + --target, skip BuildArch
+          if [ "$ARCH" = "aarch64" ]; then
+            cat > $HOME/rpmbuild/SPECS/oppopodsmanager.spec << RPMS
+          %global __strip /bin/true
+          %define _target_cpu aarch64
+          Name: oppopodsmanager
+          Version: $VER
+          Release: 1
+          Summary: OPPO/OnePlus earbud manager
+          License: MIT
+          Requires: bluez
+          %description
+          A desktop app to manage ANC, EQ, battery and other settings for OPPO, OnePlus and realme wireless earbuds.
+          %install
+          mkdir -p %{buildroot}/usr/bin
+          install -m 755 %{_sourcedir}/OppoPodsManager %{buildroot}/usr/bin/
+          %files
+          /usr/bin/OppoPodsManager
+          RPMS
+            rpmbuild --define "_topdir $HOME/rpmbuild" --target aarch64-linux-gnu -bb $HOME/rpmbuild/SPECS/oppopodsmanager.spec
+          else
+            cat > $HOME/rpmbuild/SPECS/oppopodsmanager.spec << RPMS
+          %global __strip /bin/true
+          Name: oppopodsmanager
+          Version: $VER
+          Release: 1
+          Summary: OPPO/OnePlus earbud manager
+          License: MIT
+          BuildArch: $ARCH
+          Requires: bluez
+          %description
+          A desktop app to manage ANC, EQ, battery and other settings for OPPO, OnePlus and realme wireless earbuds.
+          %install
+          mkdir -p %{buildroot}/usr/bin
+          install -m 755 %{_sourcedir}/OppoPodsManager %{buildroot}/usr/bin/
+          %files
+          /usr/bin/OppoPodsManager
+          RPMS
+            rpmbuild --define "_topdir $HOME/rpmbuild" -bb $HOME/rpmbuild/SPECS/oppopodsmanager.spec
+          fi
+          cp $HOME/rpmbuild/RPMS/*/*.rpm "OppoPodsManager-self-contained-${RID}.rpm"
+      - name: Build .AppImage
+        if: matrix.do-package
+        run: |
+          ARCH="${{ matrix.appimage-arch }}"
+          RID="${{ matrix.rid }}"
+          mkdir -p AppDir/usr/bin
+          cp publish/self-contained/OppoPodsManager AppDir/usr/bin/
+          cp publish/self-contained/lib*.so* AppDir/usr/bin/ 2>/dev/null || true
+          chmod +x AppDir/usr/bin/OppoPodsManager
+          cat > AppDir/AppRun << 'APPRUN'
+          #!/bin/bash
+          HERE="$(dirname "$(readlink -f "$0")")"
+          exec "$HERE/usr/bin/OppoPodsManager" "$@"
+          APPRUN
+          chmod +x AppDir/AppRun
+          cat > AppDir/oppopodsmanager.desktop << 'DEX'
+          [Desktop Entry]
+          Name=OppoPodsManager
+          Type=Application
+          Exec=OppoPodsManager
+          Icon=oppopodsmanager
+          Categories=Utility;Audio;
+          DEX
+          if wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-${ARCH}.AppImage" -O appimagetool 2>/dev/null; then
+            chmod +x appimagetool
+            ./appimagetool AppDir "OppoPodsManager-self-contained-${RID}.AppImage" 2>/dev/null || true
+          fi
+          if [ -f "OppoPodsManager-self-contained-${RID}.AppImage" ]; then
+            echo "AppImage created"
+          else
+            tar -czf "OppoPodsManager-self-contained-${RID}.AppImage.tar.gz" -C AppDir .
+            echo "AppImage fallback: tar.gz"
+          fi
+
+      - name: Build .pkg.tar.zst
+        if: matrix.do-package
+        run: |
+          RID="${{ matrix.rid }}"
+          mkdir -p arch-pkg/usr/bin arch-pkg/usr/share/applications
+          cp publish/self-contained/OppoPodsManager arch-pkg/usr/bin/
+          cp publish/self-contained/lib*.so* arch-pkg/usr/bin/ 2>/dev/null || true
+          echo '[Desktop Entry]' > arch-pkg/usr/share/applications/oppopodsmanager.desktop
+          echo 'Name=OppoPodsManager' >> arch-pkg/usr/share/applications/oppopodsmanager.desktop
+          echo 'Type=Application' >> arch-pkg/usr/share/applications/oppopodsmanager.desktop
+          echo 'Exec=OppoPodsManager' >> arch-pkg/usr/share/applications/oppopodsmanager.desktop
+          echo 'Categories=Utility;Audio;' >> arch-pkg/usr/share/applications/oppopodsmanager.desktop
+          tar -cJf "OppoPodsManager-self-contained-${RID}.pkg.tar.zst" -C arch-pkg .
+
+      - uses: actions/upload-artifact@v6
+        if: matrix.do-package
+        with:
+          name: OppoPodsManager-deb-${{ matrix.rid }}
+          path: OppoPodsManager-self-contained-${{ matrix.rid }}.deb
+          retention-days: 14
+      - uses: actions/upload-artifact@v6
+        if: matrix.do-package
+        with:
+          name: OppoPodsManager-rpm-${{ matrix.rid }}
+          path: OppoPodsManager-self-contained-${{ matrix.rid }}.rpm
+          retention-days: 14
+      - uses: actions/upload-artifact@v6
+        if: matrix.do-package
+        with:
+          name: OppoPodsManager-AppImage-${{ matrix.rid }}
+          path: OppoPodsManager-self-contained-${{ matrix.rid }}.AppImage*
+          retention-days: 14
+      - uses: actions/upload-artifact@v6
+        if: matrix.do-package
+        with:
+          name: OppoPodsManager-arch-${{ matrix.rid }}
+          path: OppoPodsManager-self-contained-${{ matrix.rid }}.pkg.tar.*
+          retention-days: 14
+
+  build-windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
           - os: windows-latest
             rid: win-x64
-            backend: true
-            target: net10.0-windows10.0.19041.0
             variant: single-file
             publish-args: "--self-contained false -p:PublishSingleFile=true -p:PublishAot=false -p:IncludeNativeLibrariesForSelfExtract=true"
             pack: exe
           - os: windows-latest
             rid: win-x64
-            backend: true
-            target: net10.0-windows10.0.19041.0
             variant: self-contained
             publish-args: "--self-contained true -p:PublishSingleFile=true -p:PublishAot=false -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=false -p:PublishTrimmed=true"
             pack: exe
           - os: windows-latest
             rid: win-x64
-            backend: true
-            target: net10.0-windows10.0.19041.0
             variant: aot
             publish-args: "-p:PublishAot=true"
             pack: zip
-
-          # ── Windows ARM64 ──
           - os: windows-latest
             rid: win-arm64
-            backend: true
-            target: net10.0-windows10.0.19041.0
             variant: single-file
             publish-args: "--self-contained false -p:PublishSingleFile=true -p:PublishAot=false -p:IncludeNativeLibrariesForSelfExtract=true"
             pack: exe
           - os: windows-latest
             rid: win-arm64
-            backend: true
-            target: net10.0-windows10.0.19041.0
             variant: self-contained
             publish-args: "--self-contained true -p:PublishSingleFile=true -p:PublishAot=false -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=false -p:PublishTrimmed=true"
             pack: exe
@@ -80,88 +252,57 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Cache NuGet
-        uses: actions/cache@v5
+      - uses: actions/checkout@v6
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-dotnet@v5
+        with: { dotnet-version: "${{ env.DOTNET_VERSION }}" }
+      - uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
-          restore-keys: |
-            nuget-${{ runner.os }}-
+          restore-keys: nuget-${{ runner.os }}-
 
-      - name: Publish (${{ matrix.os }} / ${{ matrix.variant }})
+      - name: Publish
         shell: pwsh
         run: >
-          dotnet publish $env:PROJECT
-          -c Release
-          -r ${{ matrix.rid }}
-          -f ${{ matrix.target }}
-          -o "publish/${{ matrix.variant }}"
+          dotnet publish $env:PROJECT -c Release -r ${{ matrix.rid }}
+          -f net10.0-windows10.0.19041.0 -o publish/${{ matrix.variant }}
           ${{ matrix.publish-args }}
-          -p:EnableWindowsBackend=${{ matrix.backend }}
+          -p:EnableWindowsBackend=true
 
-      - name: Package (${{ matrix.os }} / ${{ matrix.variant }})
+      - name: Package
         id: package
         shell: pwsh
         run: |
           $dir = "publish/${{ matrix.variant }}"
           $prefix = "OppoPodsManager-${{ matrix.variant }}-${{ matrix.rid }}"
-
           if ("${{ matrix.pack }}" -eq "zip") {
             $out = "$prefix.zip"
             Compress-Archive -Path "$dir/*" -DestinationPath $out -Force
-          } elseif ("${{ matrix.pack }}" -eq "tar.gz") {
-            $tar = "$prefix.tar"
-            if ($IsWindows) {
-              7z a -ttar $tar "$dir/*"
-              7z a -tgzip "$prefix.tar.gz" $tar
-              Remove-Item $tar
-            } else {
-              tar -czf "$prefix.tar.gz" -C $dir .
-            }
-            $out = "$prefix.tar.gz"
           } else {
             $out = "$prefix.exe"
-            $exe = Get-ChildItem -Path $dir -Filter "OppoPodsManager*" -Recurse |
-                   Where-Object { $_.Extension -in '.exe', '' } |
-                   Select-Object -First 1
+            $exe = Get-ChildItem -Path $dir -Filter "OppoPodsManager*" -Recurse | Where-Object { $_.Extension -in '.exe','' } | Select-Object -First 1
             Copy-Item $exe.FullName -Destination $out -Force
           }
-
           "asset=$out" >> $env:GITHUB_OUTPUT
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v6
         with:
           name: OppoPodsManager-${{ matrix.variant }}-${{ matrix.rid }}
           path: ${{ steps.package.outputs.asset }}
           retention-days: 14
 
   release:
-    needs: build
+    needs: [build-linux-full, build-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-
     steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v6
+        with: { path: dist }
+      - uses: softprops/action-gh-release@v2
         with:
-          path: dist
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: ${{ github.ref_name }}
+          name: "${{ github.ref_name }}"
           files: dist/**/*
           generate_release_notes: true
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: "${{ contains(github.ref_name, '-') }}"
